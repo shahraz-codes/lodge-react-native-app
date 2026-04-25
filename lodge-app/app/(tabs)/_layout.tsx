@@ -17,6 +17,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 6);
 
   return (
     <Tabs
@@ -27,9 +28,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: AppColors.white,
           borderTopColor: AppColors.border,
-          height: 64 + insets.bottom,
-          paddingBottom: insets.bottom + 8,
-          paddingTop: 8,
+          height: 56 + bottomInset,
+          paddingBottom: bottomInset,
+          paddingTop: 6,
         },
         tabBarLabelStyle: styles.tabLabel,
       }}
@@ -74,11 +75,15 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    includeFontPadding: true,
+    lineHeight: 13,
+    includeFontPadding: false,
   },
   icon: {
-    fontSize: 22,
+    fontSize: 18,
+    lineHeight: 20,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
 });

@@ -1,8 +1,41 @@
 import { Platform } from 'react-native';
-import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+
+// expo-file-system's `File`/`Paths` API is native-only. Importing the symbols
+// at the top level is fine (the module exists on web), but constructing a
+// `new File(Paths.document, ...)` on web throws because the underlying
+// `validatePath` is missing. We therefore lazy-load + gate the API so the
+// logger can run in memory-only mode on web without crashing.
+type ExpoFile = {
+  uri: string;
+  exists: boolean;
+  size: number;
+  contentUri?: string;
+  create: (opts?: { intermediates?: boolean; overwrite?: boolean }) => void;
+  write: (text: string) => void;
+  text: () => Promise<string>;
+  textSync: () => string;
+};
+
+let FileCtor: (new (parent: unknown, name: string) => ExpoFile) | null = null;
+let documentPath: unknown = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FS = require('expo-file-system') as {
+      File: new (parent: unknown, name: string) => ExpoFile;
+      Paths: { document: unknown };
+    };
+    FileCtor = FS.File;
+    documentPath = FS.Paths.document;
+  } catch {
+    FileCtor = null;
+    documentPath = null;
+  }
+}
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -58,7 +91,7 @@ class LoggerImpl {
   private memory: LogEntry[] = [];
   private buffer: LogEntry[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  private file: File;
+  private file: ExpoFile | null = null;
   private initialized = false;
   private listeners = new Set<(entry: LogEntry) => void>();
   private originalConsole: {
@@ -69,23 +102,31 @@ class LoggerImpl {
   } | null = null;
 
   constructor() {
-    this.file = new File(Paths.document, LOG_FILE_NAME);
+    if (FileCtor && documentPath) {
+      try {
+        this.file = new FileCtor(documentPath, LOG_FILE_NAME);
+      } catch {
+        this.file = null;
+      }
+    }
   }
 
   init(): void {
     if (this.initialized) return;
     this.initialized = true;
 
-    try {
-      if (!this.file.exists) {
-        this.file.create({ intermediates: true, overwrite: false });
-      } else if (this.file.size > MAX_FILE_BYTES) {
-        this.file.write(
-          `--- log rotated at ${new Date().toISOString()} (previous size: ${this.file.size} bytes) ---\n`,
-        );
+    if (this.file) {
+      try {
+        if (!this.file.exists) {
+          this.file.create({ intermediates: true, overwrite: false });
+        } else if (this.file.size > MAX_FILE_BYTES) {
+          this.file.write(
+            `--- log rotated at ${new Date().toISOString()} (previous size: ${this.file.size} bytes) ---\n`,
+          );
+        }
+      } catch {
+        // best-effort: file ops may fail in restricted environments
       }
-    } catch {
-      // best-effort: file ops may fail on web or restricted environments
     }
 
     this.info('Launch', 'Lodge app starting', this.collectLaunchInfo());
@@ -213,6 +254,11 @@ class LoggerImpl {
     if (this.buffer.length === 0) return;
     const pending = this.buffer;
     this.buffer = [];
+    if (!this.file) {
+      // Memory-only mode (e.g. web). Drop the buffer; in-memory ring buffer
+      // is still available via getMemoryEntries().
+      return;
+    }
     try {
       const text = pending.map(formatEntry).join('\n') + '\n';
       let existing = '';
@@ -251,6 +297,10 @@ class LoggerImpl {
 
   async getFileContents(): Promise<string> {
     this.flushSync();
+    if (!this.file) {
+      // Fallback: synthesize from in-memory ring buffer.
+      return this.memory.map(formatEntry).join('\n');
+    }
     if (!this.file.exists) return '';
     try {
       return await this.file.text();
@@ -260,10 +310,12 @@ class LoggerImpl {
   }
 
   getFileUri(): string {
+    if (!this.file) return '(memory only — file logging unavailable)';
     return this.file.uri;
   }
 
   getFileSize(): number {
+    if (!this.file) return 0;
     try {
       return this.file.exists ? this.file.size : 0;
     } catch {
@@ -274,12 +326,14 @@ class LoggerImpl {
   clear(): void {
     this.buffer = [];
     this.memory = [];
-    try {
-      if (this.file.exists) {
-        this.file.write('');
+    if (this.file) {
+      try {
+        if (this.file.exists) {
+          this.file.write('');
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
     this.info('Logger', 'Logs cleared by user');
   }
@@ -287,6 +341,27 @@ class LoggerImpl {
   async share(): Promise<void> {
     this.info('Logger', 'Share requested');
     this.flushSync();
+
+    if (!this.file) {
+      // Web fallback: trigger a browser download of the in-memory log.
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const contents = await this.getFileContents();
+        if (!contents) {
+          throw new Error('No logs available to share yet.');
+        }
+        const blob = new Blob([contents], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = LOG_FILE_NAME;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        return;
+      }
+      throw new Error('Sharing logs is not supported on this platform.');
+    }
 
     const available = await Sharing.isAvailableAsync().catch(() => false);
     if (!available) {
