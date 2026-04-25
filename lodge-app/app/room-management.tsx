@@ -22,7 +22,7 @@ import type { Room, RoomType, RoomStatus } from '@/lib/types';
 const STATUS_CONFIG: Record<RoomStatus, { color: string; label: string }> = {
   available: { color: AppColors.roomAvailable, label: 'Available' },
   occupied: { color: AppColors.roomOccupied, label: 'Occupied' },
-  cleaning: { color: AppColors.roomCleaning, label: 'Cleaning' },
+  maintenance: { color: AppColors.roomMaintenance, label: 'Maintenance' },
 };
 
 export default function RoomManagementScreen() {
@@ -189,6 +189,15 @@ export default function RoomManagementScreen() {
         )}
       </View>
 
+      {!isOwner && (
+        <View style={styles.notice}>
+          <Text style={styles.noticeIcon}>ℹ️</Text>
+          <Text style={styles.noticeText}>
+            Read-only access. Only owners can add or delete rooms.
+          </Text>
+        </View>
+      )}
+
       {/* Room List */}
       <FlatList
         data={rooms}
@@ -275,6 +284,28 @@ const styles = StyleSheet.create({
     color: AppColors.white,
     fontSize: 15,
     fontWeight: '700',
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef9c3',
+    borderColor: '#fde68a',
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  noticeIcon: {
+    fontSize: 14,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
   },
   list: {
     paddingHorizontal: 16,

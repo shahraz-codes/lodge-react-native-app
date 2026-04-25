@@ -1,6 +1,6 @@
 export type UserRole = 'receptionist' | 'owner';
 
-export type RoomStatus = 'available' | 'occupied' | 'cleaning';
+export type RoomStatus = 'available' | 'occupied' | 'maintenance';
 export type RoomType = 'single' | 'double' | 'suite' | 'deluxe';
 export type BookingStatus = 'booked' | 'checked_in' | 'checked_out' | 'cancelled';
 export type BookingType = 'full_day' | 'half_day' | 'hourly';

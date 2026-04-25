@@ -36,7 +36,7 @@ export const AppColors = {
 
   roomAvailable: '#22c55e',
   roomOccupied: '#ef4444',
-  roomCleaning: '#f59e0b',
+  roomMaintenance: '#f59e0b',
 
   white: '#ffffff',
   black: '#1a1a2e',

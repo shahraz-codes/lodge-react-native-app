@@ -24,7 +24,7 @@ const ROOM_TYPES: { value: RoomType; label: string }[] = [
 const ROOM_STATUSES: { value: RoomStatus; label: string; color: string }[] = [
   { value: 'available', label: 'Available', color: AppColors.roomAvailable },
   { value: 'occupied', label: 'Occupied', color: AppColors.roomOccupied },
-  { value: 'cleaning', label: 'Cleaning', color: AppColors.roomCleaning },
+  { value: 'maintenance', label: 'Maintenance', color: AppColors.roomMaintenance },
 ];
 
 interface Props {

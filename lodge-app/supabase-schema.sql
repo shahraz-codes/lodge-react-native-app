@@ -45,7 +45,7 @@ create table if not exists public.rooms (
   price numeric(10,2) not null default 0,
   half_day_price numeric(10,2),
   hourly_price numeric(10,2),
-  status text not null default 'available' check (status in ('available', 'occupied', 'cleaning')),
+  status text not null default 'available' check (status in ('available', 'occupied', 'maintenance')),
   created_at timestamptz not null default now()
 );
 
@@ -197,3 +197,11 @@ on conflict (room_number) do nothing;
 --       payment_status = 'paid',
 --       amount_paid = total_amount
 --   WHERE booking_type IS NULL OR payment_status IS NULL;
+--
+-- -- 8. Rename room status 'cleaning' → 'maintenance'
+-- ALTER TABLE public.rooms
+--   DROP CONSTRAINT IF EXISTS rooms_status_check;
+-- UPDATE public.rooms SET status = 'maintenance' WHERE status = 'cleaning';
+-- ALTER TABLE public.rooms
+--   ADD CONSTRAINT rooms_status_check
+--   CHECK (status IN ('available', 'occupied', 'maintenance'));

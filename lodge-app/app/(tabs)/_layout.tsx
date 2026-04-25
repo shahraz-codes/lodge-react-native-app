@@ -9,6 +9,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     Dashboard: '🏠',
     Bookings: '📋',
     Calendar: '📅',
+    Profile: '👤',
     'New Booking': '➕',
   };
   return <Text style={styles.icon}>{icons[name] ?? '📄'}</Text>;
@@ -52,6 +53,13 @@ export default function TabLayout() {
         options={{
           title: 'Calendar',
           tabBarIcon: ({ focused }) => <TabIcon name="Calendar" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ focused }) => <TabIcon name="Profile" focused={focused} />,
         }}
       />
       <Tabs.Screen

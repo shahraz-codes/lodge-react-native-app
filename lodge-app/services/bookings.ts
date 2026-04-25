@@ -13,6 +13,7 @@ import {
   scheduleCheckoutReminder,
   cancelCheckoutReminder,
 } from './notifications';
+import { logger } from './logger';
 
 const ACTIVE_STATUSES: BookingStatus[] = ['booked', 'checked_in'];
 
@@ -186,41 +187,83 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
 }
 
 export async function checkInBooking(bookingId: string): Promise<Booking> {
+  const start = Date.now();
+  logger.info('bookings', 'checkIn → start', { bookingId });
   const { data, error } = await supabase
     .from('bookings')
     .update({ status: 'checked_in' as BookingStatus })
     .eq('id', bookingId)
     .select('*, customer:customers(*), room:rooms(*)')
     .single();
-  if (error) throw error;
+  if (error) {
+    logger.error('bookings', 'checkIn → fail', {
+      bookingId,
+      durationMs: Date.now() - start,
+      error: error.message,
+    });
+    throw error;
+  }
 
   const booking = data as Booking;
   try {
     await scheduleCheckoutReminder(booking);
-  } catch {
-    // Notifications are best-effort; don't block check-in.
+  } catch (e: any) {
+    logger.warn('bookings', 'checkIn: scheduleReminder failed', {
+      bookingId,
+      error: e?.message ?? String(e),
+    });
   }
 
+  logger.info('bookings', 'checkIn → ok', {
+    bookingId,
+    durationMs: Date.now() - start,
+  });
   return booking;
 }
 
 export async function checkOutBooking(bookingId: string, roomId: string): Promise<Booking> {
+  const start = Date.now();
+  logger.info('bookings', 'checkOut → start', { bookingId, roomId });
   const { data, error } = await supabase
     .from('bookings')
     .update({ status: 'checked_out' as BookingStatus })
     .eq('id', bookingId)
     .select('*, customer:customers(*), room:rooms(*)')
     .single();
-  if (error) throw error;
+  if (error) {
+    logger.error('bookings', 'checkOut → fail', {
+      bookingId,
+      roomId,
+      durationMs: Date.now() - start,
+      error: error.message,
+    });
+    throw error;
+  }
 
-  await updateRoomStatus(roomId, 'available');
+  try {
+    await updateRoomStatus(roomId, 'available');
+  } catch (e: any) {
+    logger.warn('bookings', 'checkOut: updateRoomStatus failed', {
+      bookingId,
+      roomId,
+      error: e?.message ?? String(e),
+    });
+  }
 
   try {
     await cancelCheckoutReminder(bookingId);
-  } catch {
-    // Best-effort.
+  } catch (e: any) {
+    logger.warn('bookings', 'checkOut: cancelReminder failed', {
+      bookingId,
+      error: e?.message ?? String(e),
+    });
   }
 
+  logger.info('bookings', 'checkOut → ok', {
+    bookingId,
+    roomId,
+    durationMs: Date.now() - start,
+  });
   return data as Booking;
 }
 
@@ -229,6 +272,8 @@ export async function cancelBooking(
   roomId: string,
   reason: string
 ): Promise<Booking> {
+  const start = Date.now();
+  logger.info('bookings', 'cancel → start', { bookingId, roomId });
   const { data, error } = await supabase
     .from('bookings')
     .update({
@@ -238,20 +283,38 @@ export async function cancelBooking(
     .eq('id', bookingId)
     .select('*, customer:customers(*), room:rooms(*)')
     .single();
-  if (error) throw error;
+  if (error) {
+    logger.error('bookings', 'cancel → fail', {
+      bookingId,
+      durationMs: Date.now() - start,
+      error: error.message,
+    });
+    throw error;
+  }
 
   try {
     await updateRoomStatus(roomId, 'available');
-  } catch {
-    // Room may already be in another state; don't fail the cancellation.
+  } catch (e: any) {
+    logger.warn('bookings', 'cancel: updateRoomStatus failed', {
+      bookingId,
+      roomId,
+      error: e?.message ?? String(e),
+    });
   }
 
   try {
     await cancelCheckoutReminder(bookingId);
-  } catch {
-    // Best-effort.
+  } catch (e: any) {
+    logger.warn('bookings', 'cancel: cancelReminder failed', {
+      bookingId,
+      error: e?.message ?? String(e),
+    });
   }
 
+  logger.info('bookings', 'cancel → ok', {
+    bookingId,
+    durationMs: Date.now() - start,
+  });
   return data as Booking;
 }
 
@@ -284,23 +347,63 @@ export async function extendBooking(
   newBookingType?: BookingType
 ): Promise<Booking> {
   const newCheckOutStr = newCheckOut.toISOString();
-
-  const isAvailable = await checkRoomAvailability(
+  const overallStart = Date.now();
+  logger.info('bookings', 'extend → start', {
+    bookingId,
     roomId,
     currentCheckOut,
-    newCheckOutStr,
-    bookingId
-  );
+    newCheckOut: newCheckOutStr,
+    additionalAmount,
+    newBookingType,
+  });
+
+  let isAvailable: boolean;
+  const availStart = Date.now();
+  try {
+    isAvailable = await checkRoomAvailability(
+      roomId,
+      currentCheckOut,
+      newCheckOutStr,
+      bookingId
+    );
+    logger.debug('bookings', 'extend: availability checked', {
+      bookingId,
+      isAvailable,
+      durationMs: Date.now() - availStart,
+    });
+  } catch (e: any) {
+    logger.error('bookings', 'extend: availability check failed', {
+      bookingId,
+      durationMs: Date.now() - availStart,
+      error: e?.message ?? String(e),
+    });
+    throw e;
+  }
+
   if (!isAvailable) {
+    logger.warn('bookings', 'extend: room not available', { bookingId, roomId });
     throw new Error('Room is not available for the requested extension window.');
   }
 
+  const fetchStart = Date.now();
   const { data: existing, error: fetchErr } = await supabase
     .from('bookings')
     .select('total_amount, booking_type')
     .eq('id', bookingId)
     .single();
-  if (fetchErr) throw fetchErr;
+  if (fetchErr) {
+    logger.error('bookings', 'extend: existing fetch failed', {
+      bookingId,
+      durationMs: Date.now() - fetchStart,
+      error: fetchErr.message,
+    });
+    throw fetchErr;
+  }
+  logger.debug('bookings', 'extend: existing fetched', {
+    bookingId,
+    durationMs: Date.now() - fetchStart,
+    existingTotal: existing?.total_amount,
+  });
 
   const existingTotal = Number(existing?.total_amount ?? 0);
 
@@ -312,13 +415,25 @@ export async function extendBooking(
     update.booking_type = newBookingType;
   }
 
+  const updStart = Date.now();
   const { data, error } = await supabase
     .from('bookings')
     .update(update)
     .eq('id', bookingId)
     .select('*, customer:customers(*), room:rooms(*)')
     .single();
-  if (error) throw error;
+  if (error) {
+    logger.error('bookings', 'extend: update failed', {
+      bookingId,
+      durationMs: Date.now() - updStart,
+      error: error.message,
+    });
+    throw error;
+  }
+  logger.debug('bookings', 'extend: update ok', {
+    bookingId,
+    durationMs: Date.now() - updStart,
+  });
 
   const booking = data as Booking;
   try {
@@ -326,9 +441,17 @@ export async function extendBooking(
     if (booking.status === 'checked_in') {
       await scheduleCheckoutReminder(booking);
     }
-  } catch {
-    // Best-effort.
+  } catch (e: any) {
+    logger.warn('bookings', 'extend: reminder reschedule failed', {
+      bookingId,
+      error: e?.message ?? String(e),
+    });
   }
 
+  logger.info('bookings', 'extend → ok', {
+    bookingId,
+    totalDurationMs: Date.now() - overallStart,
+    newTotal: existingTotal + additionalAmount,
+  });
   return booking;
 }

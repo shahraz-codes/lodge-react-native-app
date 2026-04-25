@@ -6,7 +6,7 @@ import type { Room, RoomStatus } from '@/lib/types';
 const STATUS_CONFIG: Record<RoomStatus, { color: string; label: string }> = {
   available: { color: AppColors.roomAvailable, label: 'Available' },
   occupied: { color: AppColors.roomOccupied, label: 'Occupied' },
-  cleaning: { color: AppColors.roomCleaning, label: 'Cleaning' },
+  maintenance: { color: AppColors.roomMaintenance, label: 'Maintenance' },
 };
 
 interface Props {

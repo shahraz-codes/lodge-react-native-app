@@ -37,11 +37,13 @@ const ROOM_STATUSES: FilterOption<RoomStatusFilter>[] = [
   { key: 'all', label: 'All Status' },
   { key: 'available', label: 'Available', color: AppColors.roomAvailable },
   { key: 'occupied', label: 'Occupied', color: AppColors.roomOccupied },
-  { key: 'cleaning', label: 'Cleaning', color: AppColors.roomCleaning },
+  { key: 'maintenance', label: 'Maintenance', color: AppColors.roomMaintenance },
 ];
 
-function HeaderMenu({ onManageRooms, onLogout }: {
+function HeaderMenu({ showManageRooms, onManageRooms, onProfile, onLogout }: {
+  showManageRooms: boolean;
   onManageRooms: () => void;
+  onProfile: () => void;
   onLogout: () => void;
 }) {
   const [visible, setVisible] = useState(false);
@@ -92,12 +94,21 @@ function HeaderMenu({ onManageRooms, onLogout }: {
               { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
             ]}
           >
+            {showManageRooms && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => handleAction(onManageRooms)}
+              >
+                <Text style={styles.menuIcon}>🏨</Text>
+                <Text style={styles.menuItemText}>Manage Rooms</Text>
+              </Pressable>
+            )}
             <Pressable
               style={styles.menuItem}
-              onPress={() => handleAction(onManageRooms)}
+              onPress={() => handleAction(onProfile)}
             >
-              <Text style={styles.menuIcon}>🏨</Text>
-              <Text style={styles.menuItemText}>Manage Rooms</Text>
+              <Text style={styles.menuIcon}>👤</Text>
+              <Text style={styles.menuItemText}>Profile & Logs</Text>
             </Pressable>
             <Pressable
               style={[styles.menuItem, styles.menuItemLast]}
@@ -114,7 +125,7 @@ function HeaderMenu({ onManageRooms, onLogout }: {
 }
 
 export default function DashboardScreen() {
-  const { profile, session, signOut } = useAuth();
+  const { profile, session, signOut, isOwner } = useAuth();
   const { rooms, loading, refresh, stats } = useRooms();
   const { width } = useWindowDimensions();
   const router = useRouter();
@@ -159,7 +170,9 @@ export default function DashboardScreen() {
           <Text style={styles.subtitle}>Dashboard</Text>
         </View>
         <HeaderMenu
+          showManageRooms={isOwner}
           onManageRooms={() => router.push('/room-management')}
+          onProfile={() => router.push('/profile')}
           onLogout={signOut}
         />
       </View>
@@ -180,7 +193,7 @@ export default function DashboardScreen() {
               <StatCard label="Total" value={stats.total} color={AppColors.primary} />
               <StatCard label="Available" value={stats.available} color={AppColors.roomAvailable} />
               <StatCard label="Occupied" value={stats.occupied} color={AppColors.roomOccupied} />
-              <StatCard label="Cleaning" value={stats.cleaning} color={AppColors.roomCleaning} />
+              <StatCard label="Maintenance" value={stats.maintenance} color={AppColors.roomMaintenance} />
             </View>
 
             <View style={styles.searchContainer}>

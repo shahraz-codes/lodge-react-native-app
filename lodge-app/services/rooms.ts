@@ -22,11 +22,11 @@ export async function fetchAvailableRooms(): Promise<Room[]> {
 
 /**
  * Returns rooms that are bookable for the given time window.
- * A room is bookable if it is NOT under maintenance (`cleaning`) and has
+ * A room is bookable if it is NOT under maintenance and has
  * no overlapping active booking for [checkIn, checkOut).
  *
  * Rooms whose `status` is `occupied` may still be bookable for a future
- * window, so we do not filter by status (except `cleaning`).
+ * window, so we do not filter by status (except `maintenance`).
  */
 export async function fetchAvailableRoomsForSlot(
   checkIn: string,
@@ -36,7 +36,7 @@ export async function fetchAvailableRoomsForSlot(
     supabase
       .from('rooms')
       .select('*')
-      .neq('status', 'cleaning')
+      .neq('status', 'maintenance')
       .order('room_number', { ascending: true }),
     supabase
       .from('bookings')
