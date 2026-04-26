@@ -177,107 +177,110 @@ export default function DashboardScreen() {
         />
       </View>
 
+      <View style={styles.fixedTop}>
+        <View style={styles.statsStrip}>
+          <StatCard label="Total" value={stats.total} color={AppColors.primary} />
+          <View style={styles.statsDivider} />
+          <StatCard label="Available" value={stats.available} color={AppColors.roomAvailable} />
+          <View style={styles.statsDivider} />
+          <StatCard label="Occupied" value={stats.occupied} color={AppColors.roomOccupied} />
+          <View style={styles.statsDivider} />
+          <StatCard label="Maintenance" value={stats.maintenance} color={AppColors.roomMaintenance} />
+        </View>
+
+        <View style={styles.searchContainer}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by room number..."
+            placeholderTextColor={AppColors.grey}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+          {searchQuery !== '' && (
+            <Pressable onPress={() => setSearchQuery('')} style={styles.searchClear} hitSlop={8}>
+              <Text style={styles.searchClearText}>✕</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={styles.filterButtonsRow}>
+          <Pressable
+            style={[
+              styles.filterButton,
+              typeFilter !== 'all' && styles.filterButtonActive,
+            ]}
+            onPress={() => setTypeDrawerOpen(true)}
+          >
+            <Text style={styles.filterButtonLabel}>Type</Text>
+            <View style={styles.filterButtonValueRow}>
+              <Text
+                style={[
+                  styles.filterButtonValue,
+                  typeFilter !== 'all' && styles.filterButtonValueActive,
+                ]}
+                numberOfLines={1}
+              >
+                {selectedTypeOption.label}
+              </Text>
+              <Text style={styles.filterButtonChevron}>▾</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.filterButton,
+              statusFilter !== 'all' && styles.filterButtonActive,
+            ]}
+            onPress={() => setStatusDrawerOpen(true)}
+          >
+            <Text style={styles.filterButtonLabel}>Status</Text>
+            <View style={styles.filterButtonValueRow}>
+              {selectedStatusOption.color && (
+                <View
+                  style={[
+                    styles.filterButtonDot,
+                    { backgroundColor: selectedStatusOption.color },
+                  ]}
+                />
+              )}
+              <Text
+                style={[
+                  styles.filterButtonValue,
+                  statusFilter !== 'all' && styles.filterButtonValueActive,
+                ]}
+                numberOfLines={1}
+              >
+                {selectedStatusOption.label}
+              </Text>
+              <Text style={styles.filterButtonChevron}>▾</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        {hasActiveFilters && (
+          <View style={styles.filterInfo}>
+            <Text style={styles.filterInfoText}>
+              {filteredRooms.length} room{filteredRooms.length !== 1 ? 's' : ''} found
+            </Text>
+            <Pressable onPress={clearFilters} hitSlop={8}>
+              <Text style={styles.clearFiltersText}>Clear filters</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
       <FlatList
         data={filteredRooms}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
         key={numColumns}
+        style={styles.listScroll}
         contentContainerStyle={styles.list}
         columnWrapperStyle={styles.row}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} colors={[AppColors.primary]} />
-        }
-        ListHeaderComponent={
-          <View>
-            <View style={styles.statsRow}>
-              <StatCard label="Total" value={stats.total} color={AppColors.primary} />
-              <StatCard label="Available" value={stats.available} color={AppColors.roomAvailable} />
-              <StatCard label="Occupied" value={stats.occupied} color={AppColors.roomOccupied} />
-              <StatCard label="Maintenance" value={stats.maintenance} color={AppColors.roomMaintenance} />
-            </View>
-
-            <View style={styles.searchContainer}>
-              <Text style={styles.searchIcon}>🔍</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search by room number..."
-                placeholderTextColor={AppColors.grey}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                returnKeyType="search"
-              />
-              {searchQuery !== '' && (
-                <Pressable onPress={() => setSearchQuery('')} style={styles.searchClear} hitSlop={8}>
-                  <Text style={styles.searchClearText}>✕</Text>
-                </Pressable>
-              )}
-            </View>
-
-            <View style={styles.filterButtonsRow}>
-              <Pressable
-                style={[
-                  styles.filterButton,
-                  typeFilter !== 'all' && styles.filterButtonActive,
-                ]}
-                onPress={() => setTypeDrawerOpen(true)}
-              >
-                <Text style={styles.filterButtonLabel}>Type</Text>
-                <View style={styles.filterButtonValueRow}>
-                  <Text
-                    style={[
-                      styles.filterButtonValue,
-                      typeFilter !== 'all' && styles.filterButtonValueActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedTypeOption.label}
-                  </Text>
-                  <Text style={styles.filterButtonChevron}>▾</Text>
-                </View>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.filterButton,
-                  statusFilter !== 'all' && styles.filterButtonActive,
-                ]}
-                onPress={() => setStatusDrawerOpen(true)}
-              >
-                <Text style={styles.filterButtonLabel}>Status</Text>
-                <View style={styles.filterButtonValueRow}>
-                  {selectedStatusOption.color && (
-                    <View
-                      style={[
-                        styles.filterButtonDot,
-                        { backgroundColor: selectedStatusOption.color },
-                      ]}
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.filterButtonValue,
-                      statusFilter !== 'all' && styles.filterButtonValueActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedStatusOption.label}
-                  </Text>
-                  <Text style={styles.filterButtonChevron}>▾</Text>
-                </View>
-              </Pressable>
-            </View>
-
-            {hasActiveFilters && (
-              <View style={styles.filterInfo}>
-                <Text style={styles.filterInfoText}>
-                  {filteredRooms.length} room{filteredRooms.length !== 1 ? 's' : ''} found
-                </Text>
-                <Pressable onPress={clearFilters} hitSlop={8}>
-                  <Text style={styles.clearFiltersText}>Clear filters</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
         }
         renderItem={({ item }) => (
           <View style={{ flex: 1, maxWidth: `${100 / numColumns}%`, padding: 6 }}>
@@ -416,15 +419,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: AppColors.black,
   },
-  statsRow: {
+  statsStrip: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingHorizontal: 6,
-    paddingBottom: 12,
+    alignItems: 'stretch',
+    backgroundColor: AppColors.white,
+    borderRadius: 12,
+    marginHorizontal: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: AppColors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+    overflow: 'hidden',
+  },
+  statsDivider: {
+    width: 1,
+    backgroundColor: AppColors.border,
+    marginVertical: 10,
+  },
+  fixedTop: {
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    backgroundColor: AppColors.lightGrey,
+  },
+  listScroll: {
+    flex: 1,
   },
   list: {
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    flexGrow: 1,
   },
   row: {
     gap: 0,

@@ -49,8 +49,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const sessionLoadedRef = useRef(false);
+  // Track which userId is currently loaded and which is in-flight so we can
+  // dedupe reloads triggered by overlapping auth events (TOKEN_REFRESHED,
+  // SIGNED_IN, etc.). Using refs avoids stale-closure issues inside the
+  // onAuthStateChange callback.
+  const loadedUserIdRef = useRef<string | null>(null);
+  const inFlightUserIdRef = useRef<string | null>(null);
 
-  const loadProfile = useCallback(async (userId: string) => {
+  const loadProfile = useCallback(async (userId: string, opts?: { force?: boolean }) => {
+    if (!opts?.force) {
+      if (inFlightUserIdRef.current === userId) return;
+      if (loadedUserIdRef.current === userId) return;
+    }
+    inFlightUserIdRef.current = userId;
     const start = Date.now();
     logger.info('Auth', 'Loading profile', { userId });
     try {
@@ -61,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       setProfile(prof);
       setProfileError(null);
+      loadedUserIdRef.current = userId;
       logger.info('Auth', 'Profile loaded', {
         userId,
         durationMs: Date.now() - start,
@@ -69,13 +81,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (e: any) {
       const message = e?.message ?? String(e);
-      setProfile(null);
+      // Do NOT clear an already-loaded profile on a later failure. A timeout
+      // on a refresh shouldn't strip the user's role/name out from under the
+      // UI when we already have a good copy. The Retry button can force a
+      // fresh fetch via refreshProfile().
       setProfileError(message);
       logger.error('Auth', 'Profile load failed', {
         userId,
         durationMs: Date.now() - start,
         error: message,
+        keptCachedProfile: loadedUserIdRef.current === userId,
       });
+    } finally {
+      if (inFlightUserIdRef.current === userId) {
+        inFlightUserIdRef.current = null;
+      }
     }
   }, []);
 
@@ -101,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       SESSION_INIT_TIMEOUT_MS,
       'supabase.auth.getSession',
     )
-      .then(async ({ data: { session: s } }) => {
+      .then(({ data: { session: s } }) => {
         if (!mounted) return;
         sessionLoadedRef.current = true;
         logger.info('Auth', 'Initial session resolved', {
@@ -111,7 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         setSession(s);
         if (s?.user) {
-          await loadProfile(s.user.id);
+          // Defer so we don't run a Supabase query while the auth lock is
+          // still held by getSession(). See onAuthStateChange below.
+          const uid = s.user.id;
+          setTimeout(() => {
+            if (mounted) loadProfile(uid);
+          }, 0);
         }
       })
       .catch((e: any) => {
@@ -129,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, s) => {
+      (event, s) => {
         if (!mounted) return;
         logger.info('Auth', 'Auth state changed', {
           event,
@@ -137,12 +162,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userId: s?.user?.id ?? null,
         });
         setSession(s);
-        if (s?.user) {
-          await loadProfile(s.user.id);
-        } else {
+
+        if (!s?.user) {
+          loadedUserIdRef.current = null;
+          inFlightUserIdRef.current = null;
           setProfile(null);
           setProfileError(null);
+          return;
         }
+
+        // TOKEN_REFRESHED keeps the same user; the existing profile is still
+        // valid. Skipping the refetch avoids the Supabase auth-lock deadlock
+        // that times out at 10s and would otherwise wipe the cached profile.
+        if (event === 'TOKEN_REFRESHED' && loadedUserIdRef.current === s.user.id) {
+          return;
+        }
+
+        // CRITICAL: never await a Supabase query inside this callback.
+        // supabase-js holds an internal auth lock while this listener runs;
+        // any .from(...) call from here will wait for that lock and hang
+        // (the symptom we were seeing as "fetchProfile timed out after
+        // 10000ms" on TOKEN_REFRESHED / SIGNED_IN). Defer to a microtask so
+        // the lock is released first.
+        const uid = s.user.id;
+        setTimeout(() => {
+          if (!mounted) return;
+          loadProfile(uid);
+        }, 0);
       }
     );
 
@@ -180,6 +226,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e: any) {
       logger.warn('Auth', 'Sign-out failed', { error: e?.message ?? String(e) });
     } finally {
+      loadedUserIdRef.current = null;
+      inFlightUserIdRef.current = null;
       setProfile(null);
       setProfileError(null);
       setSession(null);
@@ -189,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (session?.user) {
       logger.info('Auth', 'Refreshing profile', { userId: session.user.id });
-      await loadProfile(session.user.id);
+      await loadProfile(session.user.id, { force: true });
     }
   }, [session, loadProfile]);
 
