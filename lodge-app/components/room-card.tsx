@@ -18,6 +18,7 @@ export function RoomCard({ room, onPress }: Props) {
   const config = STATUS_CONFIG[room.status];
   const halfDay = room.half_day_price ?? Math.round(room.price * 0.6);
   const hourly = room.hourly_price ?? Math.round(room.price / 24);
+  const typeLabel = room.type.charAt(0).toUpperCase() + room.type.slice(1);
 
   return (
     <Pressable
@@ -28,15 +29,26 @@ export function RoomCard({ room, onPress }: Props) {
       ]}
       onPress={() => onPress?.(room)}
     >
-      <View style={styles.header}>
-        <Text style={styles.roomNumber}>#{room.room_number}</Text>
-        <View style={[styles.badge, { backgroundColor: config.color }]}>
-          <Text style={styles.badgeText}>{config.label}</Text>
-        </View>
+      <Text style={styles.roomNumber} numberOfLines={1}>
+        Room no: {room.room_number}
+      </Text>
+
+      <View style={[styles.badge, { backgroundColor: config.color }]}>
+        <Text style={styles.badgeText} numberOfLines={1}>
+          {config.label}
+        </Text>
       </View>
-      <Text style={styles.type}>{room.type.charAt(0).toUpperCase() + room.type.slice(1)}</Text>
-      <Text style={styles.price}>₹{room.price}/night</Text>
-      <Text style={styles.priceSub}>₹{halfDay}/12hrs · ₹{hourly}/hr</Text>
+
+      <Text style={styles.type} numberOfLines={1}>
+        {typeLabel}
+      </Text>
+
+      <Text style={styles.price} numberOfLines={1}>
+        ₹{room.price}/night
+      </Text>
+      <Text style={styles.priceSub} numberOfLines={1}>
+        ₹{halfDay}/12hrs · ₹{hourly}/hr
+      </Text>
     </Pressable>
   );
 }
@@ -45,7 +57,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: AppColors.white,
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -57,41 +69,35 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     transform: [{ scale: 0.98 }],
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
   roomNumber: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: AppColors.black,
-    flexShrink: 1,
-    marginRight: 6,
+    marginBottom: 8,
   },
   badge: {
-    paddingHorizontal: 9,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    flexShrink: 0,
+    marginBottom: 10,
   },
   badgeText: {
     color: AppColors.white,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   type: {
     fontSize: 14,
     color: AppColors.grey,
-    marginBottom: 4,
+    fontWeight: '600',
+    marginBottom: 6,
   },
   price: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: AppColors.primary,
   },
   priceSub: {

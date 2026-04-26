@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -40,11 +41,15 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
     >
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
           <View style={styles.iconCircle}>
@@ -66,6 +71,9 @@ export default function LoginScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
             />
           </View>
 
@@ -73,12 +81,15 @@ export default function LoginScreen() {
             <Text style={styles.label}>Password</Text>
             <View style={styles.passwordWrapper}>
               <TextInput
+                ref={passwordRef}
                 style={styles.passwordInput}
                 placeholder="Enter your password"
                 placeholderTextColor={AppColors.grey}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <Pressable
                 style={styles.toggleBtn}
@@ -110,10 +121,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AppColors.lightGrey,
   },
+  scrollView: {
+    flex: 1,
+  },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',

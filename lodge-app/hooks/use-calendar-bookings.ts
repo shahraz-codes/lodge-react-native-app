@@ -5,12 +5,12 @@ import { logger } from '@/services/logger';
 
 const FETCH_TIMEOUT_MS = 15000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`${label} timed out after ${ms}ms`));
     }, ms);
-    promise.then(
+    Promise.resolve(promise).then(
       (v) => {
         clearTimeout(timer);
         resolve(v);
@@ -52,7 +52,7 @@ export function useCalendarBookings(date: Date) {
       });
       try {
         setError(null);
-        const { data, error: err } = await withTimeout(
+        const response = (await withTimeout(
           supabase
             .from('bookings')
             .select('*, customer:customers(*), room:rooms(*)')
@@ -62,7 +62,8 @@ export function useCalendarBookings(date: Date) {
             .order('check_in', { ascending: true }),
           FETCH_TIMEOUT_MS,
           'calendarBookings.fetch',
-        );
+        )) as { data: Booking[] | null; error: unknown };
+        const { data, error: err } = response;
         if (err) throw err;
         if (inFlightRef.current === id) {
           setBookings((data as Booking[]) ?? []);

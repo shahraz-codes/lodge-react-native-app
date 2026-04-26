@@ -5,6 +5,7 @@ import type { Booking, BookingType, PaymentStatus } from '@/lib/types';
 
 interface Props {
   booking: Booking;
+  onPress?: (booking: Booking) => void;
   onCheckIn?: (booking: Booking) => void;
   onCheckOut?: (booking: Booking) => void;
   onCancel?: (booking: Booking) => void;
@@ -47,7 +48,14 @@ function formatDateTime(dateStr: string, withTime: boolean): string {
   });
 }
 
-export function BookingCard({ booking, onCheckIn, onCheckOut, onCancel, onExtend }: Props) {
+export function BookingCard({
+  booking,
+  onPress,
+  onCheckIn,
+  onCheckOut,
+  onCancel,
+  onExtend,
+}: Props) {
   const status = STATUS_LABELS[booking.status] ?? STATUS_LABELS.booked;
   const customerName = booking.customer?.name ?? 'Unknown';
   const roomNumber = booking.room?.room_number ?? '—';
@@ -89,7 +97,11 @@ export function BookingCard({ booking, onCheckIn, onCheckOut, onCancel, onExtend
   const isActionable = booking.status === 'booked' || booking.status === 'checked_in';
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && onPress && styles.cardPressed]}
+      onPress={onPress ? () => onPress(booking) : undefined}
+      disabled={!onPress}
+    >
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.customer}>{customerName}</Text>
@@ -103,6 +115,7 @@ export function BookingCard({ booking, onCheckIn, onCheckOut, onCancel, onExtend
         <View style={[styles.badge, { backgroundColor: status.bg }]}>
           <Text style={styles.badgeText}>{status.text}</Text>
         </View>
+        {onPress && <Text style={styles.chevron}>›</Text>}
       </View>
 
       <View style={styles.dates}>
@@ -176,7 +189,7 @@ export function BookingCard({ booking, onCheckIn, onCheckOut, onCancel, onExtend
           )}
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -191,6 +204,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     marginBottom: 12,
+  },
+  cardPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.995 }],
+  },
+  chevron: {
+    fontSize: 22,
+    color: AppColors.grey,
+    fontWeight: '700',
+    marginLeft: 6,
   },
   header: {
     flexDirection: 'row',

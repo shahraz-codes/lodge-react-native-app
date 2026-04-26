@@ -176,7 +176,9 @@ export default function ProfileScreen() {
     ? role.charAt(0).toUpperCase() + role.slice(1)
     : profileError
       ? 'Unknown (profile failed to load)'
-      : 'Loading…';
+      : profile
+        ? 'Role not set'
+        : 'Loading…';
 
   const roleColor = isOwner
     ? AppColors.success
@@ -218,18 +220,46 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {!profileError && profile && !role && (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>Role not set</Text>
+            <Text style={styles.warningMessage}>
+              Your account exists but no role is assigned, so role-specific features (like
+              Manage Rooms) are hidden. Ask an admin to set your role in the database, then
+              tap retry.
+            </Text>
+            <Pressable style={styles.warningRetry} onPress={handleRefreshProfile}>
+              <Text style={styles.warningRetryText}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
+
         {isOwner && (
-          <Pressable
-            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-            onPress={() => router.push('/room-management')}
-          >
-            <Text style={styles.actionIcon}>🏨</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionLabel}>Manage Rooms</Text>
-              <Text style={styles.actionHint}>Add, edit, or remove rooms</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
+          <>
+            <Pressable
+              style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+              onPress={() => router.push('/room-management')}
+            >
+              <Text style={styles.actionIcon}>🏨</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionLabel}>Manage Rooms</Text>
+                <Text style={styles.actionHint}>Add, edit, or remove rooms</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+              onPress={() => router.push('/user-management')}
+            >
+              <Text style={styles.actionIcon}>👥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionLabel}>Manage Users</Text>
+                <Text style={styles.actionHint}>Add or remove receptionists & owners</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          </>
         )}
 
         <Text style={styles.sectionTitle}>Diagnostics</Text>
@@ -508,6 +538,38 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   errorRetryText: {
+    color: AppColors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  warningBox: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  warningTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: AppColors.warning,
+    marginBottom: 4,
+  },
+  warningMessage: {
+    fontSize: 13,
+    color: AppColors.black,
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  warningRetry: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: AppColors.warning,
+    borderRadius: 8,
+  },
+  warningRetryText: {
     color: AppColors.white,
     fontSize: 12,
     fontWeight: '700',

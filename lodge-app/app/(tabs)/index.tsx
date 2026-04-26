@@ -418,7 +418,8 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 10,
     paddingHorizontal: 6,
     paddingBottom: 12,
   },

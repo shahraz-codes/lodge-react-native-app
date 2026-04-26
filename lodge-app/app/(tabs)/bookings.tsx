@@ -275,6 +275,12 @@ export default function BookingsScreen() {
         renderItem={({ item }) => (
           <BookingCard
             booking={item}
+            onPress={(b) =>
+              router.push({
+                pathname: '/booking-details',
+                params: { bookingId: b.id },
+              })
+            }
             onCheckIn={handleCheckIn}
             onCheckOut={handleCheckOut}
             onCancel={setCancelTarget}

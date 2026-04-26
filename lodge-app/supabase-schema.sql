@@ -19,6 +19,26 @@ create policy "Users can update their own profile"
   on public.profiles for update to authenticated
   using (id = auth.uid());
 
+-- Owners can manage other staff profiles. The trigger handle_new_user runs as
+-- security definer so signup still works; these policies only kick in for
+-- direct inserts/updates/deletes the owner performs from the app.
+create policy "Owners can insert profiles"
+  on public.profiles for insert to authenticated
+  with check (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'owner')
+  );
+create policy "Owners can update any profile"
+  on public.profiles for update to authenticated
+  using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'owner')
+  );
+create policy "Owners can delete profiles"
+  on public.profiles for delete to authenticated
+  using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'owner')
+    and id <> auth.uid()
+  );
+
 -- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger as $$
@@ -149,6 +169,35 @@ on conflict (room_number) do nothing;
 
 
 -- ============================================================================
+-- BACKFILL: fix profiles whose role/name were never populated (e.g. accounts
+-- created before the handle_new_user trigger or where signup metadata was
+-- missing). Run this in Supabase SQL Editor whenever you see a profile with
+-- role=null in the app logs.
+-- ============================================================================
+-- Set role + name from auth metadata when present, otherwise infer from a
+-- conventional email prefix (owner@…, receptionist@…). Falls back to
+-- 'receptionist' so the user is at least usable.
+update public.profiles p
+set
+  role = coalesce(
+    p.role,
+    (u.raw_user_meta_data->>'role')::text,
+    case
+      when split_part(u.email, '@', 1) ilike 'owner%' then 'owner'
+      when split_part(u.email, '@', 1) ilike 'receptionist%' then 'receptionist'
+      else 'receptionist'
+    end
+  ),
+  name = coalesce(
+    nullif(p.name, ''),
+    nullif(u.raw_user_meta_data->>'name', ''),
+    split_part(u.email, '@', 1)
+  )
+from auth.users u
+where p.id = u.id
+  and (p.role is null or p.name is null or p.name = '');
+
+-- ============================================================================
 -- MIGRATION: for existing databases (run ONCE in Supabase SQL Editor)
 -- ============================================================================
 -- Uncomment and run if you already have the original schema deployed.
@@ -205,3 +254,24 @@ on conflict (room_number) do nothing;
 -- ALTER TABLE public.rooms
 --   ADD CONSTRAINT rooms_status_check
 --   CHECK (status IN ('available', 'occupied', 'maintenance'));
+--
+-- -- 9. Owner-managed profile policies (for the User Management screen)
+-- DROP POLICY IF EXISTS "Owners can insert profiles" ON public.profiles;
+-- CREATE POLICY "Owners can insert profiles"
+--   ON public.profiles FOR INSERT TO authenticated
+--   WITH CHECK (
+--     EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner')
+--   );
+-- DROP POLICY IF EXISTS "Owners can update any profile" ON public.profiles;
+-- CREATE POLICY "Owners can update any profile"
+--   ON public.profiles FOR UPDATE TO authenticated
+--   USING (
+--     EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner')
+--   );
+-- DROP POLICY IF EXISTS "Owners can delete profiles" ON public.profiles;
+-- CREATE POLICY "Owners can delete profiles"
+--   ON public.profiles FOR DELETE TO authenticated
+--   USING (
+--     EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'owner')
+--     AND id <> auth.uid()
+--   );

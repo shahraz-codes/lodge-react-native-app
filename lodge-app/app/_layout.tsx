@@ -14,7 +14,13 @@ import { logger } from '@/services/logger';
 
 logger.init();
 
-const AUTHENTICATED_SEGMENTS = ['(tabs)', 'room-management', 'booking-confirmation'];
+const AUTHENTICATED_SEGMENTS = [
+  '(tabs)',
+  'room-management',
+  'booking-confirmation',
+  'booking-details',
+  'user-management',
+];
 
 function AuthGate() {
   const { session, loading, profile, role } = useAuth();
@@ -110,6 +116,8 @@ function AuthGate() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="room-management" />
       <Stack.Screen name="booking-confirmation" />
+      <Stack.Screen name="booking-details" />
+      <Stack.Screen name="user-management" />
     </Stack>
   );
 }

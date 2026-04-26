@@ -372,9 +372,10 @@ class LoggerImpl {
       throw new Error('No logs available to share yet.');
     }
 
-    const shareUri = Platform.OS === 'android' ? this.file.contentUri || this.file.uri : this.file.uri;
-
-    await Sharing.shareAsync(shareUri, {
+    // expo-sharing 14+ requires a file:// URI (it converts to a FileProvider
+    // content URI internally on Android). Passing this.file.contentUri here
+    // throws "Only local file URLs are supported".
+    await Sharing.shareAsync(this.file.uri, {
       mimeType: 'text/plain',
       dialogTitle: 'Share Lodge App Logs',
       UTI: 'public.plain-text',

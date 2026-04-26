@@ -19,7 +19,9 @@ export function StatCard({ label, value, color }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 140,
     backgroundColor: AppColors.white,
     borderRadius: 12,
     padding: 16,
